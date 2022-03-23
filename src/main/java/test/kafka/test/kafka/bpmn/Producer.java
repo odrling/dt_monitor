@@ -1,6 +1,7 @@
 package test.kafka.test.kafka.bpmn;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
@@ -12,8 +13,16 @@ import java.util.Collections;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+import javax.inject.Singleton;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.apache.avro.io.BinaryEncoder;
+import org.apache.avro.io.DatumWriter;
+import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -30,38 +39,44 @@ import org.eclipse.emf.ecore.resource.ResourceSet;
 import org.eclipse.emf.ecore.resource.impl.ResourceFactoryImpl;
 import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
 
+import test.kafka.test.kafka.bpmn.avro.Command;
+
+@Singleton
 public class Producer {
 
 	final static ObjectMapper mapper = new ObjectMapper();
+	private KafkaProducer<byte[], byte[]> producer;
 
-	public static void main(String[] args) {
-		try {
-			String payload = getXMIData();
+	@PostConstruct
+	public void init() {
+		final Properties props = new Properties();
+		props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+		props.put(ProducerConfig.ACKS_CONFIG, "all");
+		props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+				"org.apache.kafka.common.serialization.ByteArraySerializer");
+		props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+				"org.apache.kafka.common.serialization.ByteArraySerializer");
 
-			final Properties props = new Properties();
-			props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-			props.put(ProducerConfig.ACKS_CONFIG, "all");
-			props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-					"org.apache.kafka.common.serialization.StringSerializer");
-			props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-					"org.apache.kafka.common.serialization.StringSerializer");
+		// createTopic(topic, props);
 
-			String topic = "test_topic_bpmn";
-			createTopic(topic, props);
+		producer = new KafkaProducer<>(props);
+	}
 
-			DataRecord d = new SetXMIDataRecord(payload);
-			String s = mapper.writeValueAsString(d.toJson());
+	public void sendCommand(Command command) throws IOException {
+		String topic = "my_topic11";
 
-			KafkaProducer<String, String> producer = new KafkaProducer<>(props);
-			ProducerRecord<String, String> r = new ProducerRecord<>(topic, s);
+		ByteArrayOutputStream oStream = new ByteArrayOutputStream();
+		BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(oStream, null);
+		DatumWriter<Command> writer = new SpecificDatumWriter<>(Command.getClassSchema());
+		writer.write(command, encoder);
 
-			producer.send(r);
+		ProducerRecord<byte[], byte[]> r = new ProducerRecord<>(topic, oStream.toByteArray());
+		producer.send(r);
+	}
 
-			producer.close();
-			System.out.println("done");
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+	@PreDestroy
+	public void close() {
+		producer.close();
 	}
 
 	public static Properties loadConfig(String configFile) throws IOException {
