@@ -1,0 +1,46 @@
+{
+    "type": "record",
+    "name": "Command",
+    "fields": [
+        {
+            "name": "command",
+            "type": [
+                {
+                    "type": "record",
+                    "name": "SetXMICommand",
+                    "fields": [
+                        {
+                            "name": "set_xmi",
+                            "type": "string"
+                        }
+                    ],
+                    "doc": "Set model XMI"
+                },
+                {
+                    "type": "record",
+                    "name": "ElementEvent",
+                    "fields": [
+                        {
+                            "name": "elementID",
+                            "type": "string"
+                        },
+                        {
+                            "name": "event",
+                            "type": {
+                                "type": "enum",
+                                "name": "event",
+                                "symbols": [
+                                    "Start",
+                                    "End"
+                                ]
+                            }
+                        }
+                    ],
+                    "doc": "Events on a workflow element"
+                }
+            ]
+        }
+    ],
+    "doc": "Command(command: Union[commands.SetXMICommand, commands.ElementEvent])",
+    "namespace": "test.kafka.test.kafka.bpmn.avro"
+}
