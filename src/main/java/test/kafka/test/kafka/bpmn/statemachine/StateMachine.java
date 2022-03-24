@@ -53,11 +53,11 @@ public class StateMachine {
 		return false;
 	}
 
-	synchronized public void applyAction(Action action) throws Deviation {
+	synchronized public void applyAction(Action action) throws DeviationException {
 		System.out.println(action);
 		System.out.println(this.activeStates);
 		if (!transitions.containsKey(action)) {
-			throw new Deviation(action);
+			throw new DeviationException(action);
 		}
 
 		Map<State, Map<State, Transition>> actionTransitions = new HashMap<>(transitions.get(action));
@@ -74,7 +74,7 @@ public class StateMachine {
 		}
 
 		if (transitionStates.isEmpty()) {
-			throw new Deviation(action, actionTransitions.keySet());
+			throw new DeviationException(action, actionTransitions.keySet());
 		}
 
 

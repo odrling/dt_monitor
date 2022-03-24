@@ -14,7 +14,8 @@
                             "type": "string"
                         }
                     ],
-                    "doc": "Set model XMI"
+                    "doc": "Set model XMI",
+                    "namespace": "test.kafka.test.kafka.bpmn.avro"
                 },
                 {
                     "type": "record",
@@ -25,10 +26,10 @@
                             "type": "string"
                         },
                         {
-                            "name": "event",
+                            "name": "action",
                             "type": {
                                 "type": "enum",
-                                "name": "event",
+                                "name": "action",
                                 "symbols": [
                                     "Start",
                                     "End"
@@ -36,11 +37,28 @@
                             }
                         }
                     ],
-                    "doc": "Events on a workflow element"
+                    "doc": "Events on a workflow element",
+                    "namespace": "test.kafka.test.kafka.bpmn.avro"
+                },
+                {
+                    "type": "record",
+                    "name": "Deviation",
+                    "fields": [
+                        {
+                            "name": "deviationID",
+                            "type": "string"
+                        },
+                        {
+                            "name": "event",
+                            "type": "test.kafka.test.kafka.bpmn.avro.ElementEvent"
+                        }
+                    ],
+                    "doc": "Deviation occuring in the workflow",
+                    "namespace": "test.kafka.test.kafka.bpmn.avro"
                 }
             ]
         }
     ],
-    "doc": "Command(command: Union[commands.SetXMICommand, commands.ElementEvent])",
+    "doc": "Command(command: Union[commands.SetXMICommand, commands.ElementEvent, commands.Deviation])",
     "namespace": "test.kafka.test.kafka.bpmn.avro"
 }

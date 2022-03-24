@@ -57,15 +57,6 @@ public class Consumer {
 		consumer.seek(tp, 0);
 
 		consumerLoop();
-
-		Thread thread = new Thread(new Runnable() {
-			public void run() {
-				while (true) {
-					consumerLoop();
-				}
-			}
-		});
-		thread.start();
 	}
 
 	@PreDestroy
@@ -90,6 +81,9 @@ public class Consumer {
 
 					model.handle(cmd);
 				} catch (IOException e) {
+					e.printStackTrace();
+				} catch (ReportDeviationException e) {
+					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			});

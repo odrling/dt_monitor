@@ -5,7 +5,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
+import javax.inject.Inject;
 import javax.inject.Singleton;
 
 import org.eclipse.bpmn2.Bpmn2Package;
@@ -21,11 +23,13 @@ import org.eclipse.emf.ecore.resource.impl.ResourceFactoryImpl;
 import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
 
 import test.kafka.test.kafka.bpmn.avro.Command;
+import test.kafka.test.kafka.bpmn.avro.Deviation;
 import test.kafka.test.kafka.bpmn.avro.ElementEvent;
 import test.kafka.test.kafka.bpmn.avro.SetXMICommand;
+import test.kafka.test.kafka.bpmn.avro.action;
 import test.kafka.test.kafka.bpmn.avro.event;
 import test.kafka.test.kafka.bpmn.statemachine.Action;
-import test.kafka.test.kafka.bpmn.statemachine.Deviation;
+import test.kafka.test.kafka.bpmn.statemachine.DeviationException;
 import test.kafka.test.kafka.bpmn.statemachine.StateMachine;
 import test.kafka.test.kafka.bpmn.statemachine.Status;
 
@@ -34,6 +38,9 @@ public class Model {
 
 	private DocumentRoot root;
 	private StateMachine stateMachine;
+
+	@Inject
+	private Producer producer;
 
 	public DocumentRoot getRoot() {
 		return root;
@@ -49,7 +56,7 @@ public class Model {
 
 	private interface Handler {
 
-		void handle(Model model, Object commandData);
+		void handle(Model model, Object commandData) throws ReportDeviationException;
 
 	}
 
@@ -69,7 +76,7 @@ public class Model {
 
 		dispatch.put(ElementEvent.class, new Handler() {
 			@Override
-			public void handle(Model model, Object cmdData) {
+			public void handle(Model model, Object cmdData) throws ReportDeviationException {
 				ElementEvent commandData = (ElementEvent) cmdData;
 
 				FlowNode node;
@@ -82,9 +89,9 @@ public class Model {
 				}
 
 				Action act;
-				if (commandData.getEvent() == event.Start) {
+				if (commandData.getAction() == action.Start) {
 					act = Action.get(node, Status.ACTIVE);
-				} else if (commandData.getEvent() == event.End) {
+				} else if (commandData.getAction() == action.End) {
 					act = Action.get(node, Status.COMPLETED);
 				} else {
 					throw new RuntimeException("invalid event status");
@@ -92,19 +99,46 @@ public class Model {
 
 				try {
 					model.stateMachine.applyAction(act);
-				} catch (Deviation e) {
+				} catch (DeviationException e) {
 					System.out.println(e.getRelatedNodes());
+					Deviation deviation = Deviation.newBuilder()
+						.setEvent(commandData)
+						.setDeviationID(UUID.randomUUID().toString())
+						.build();
+					throw new ReportDeviationException(deviation);
 				}
 			}
 		});
 	}
 
-	public void handle(Command cmd) {
+	public void handle(Command cmd, boolean reportCommand) throws IOException, ReportDeviationException {
 		Object commandData = cmd.getCommand();
 		System.out.println("handling " + commandData.getClass().getName());
 		Handler handler = dispatch.get(commandData.getClass());
-		handler.handle(this, commandData);
+		try {
+			handler.handle(this, commandData);
+		} catch (ReportDeviationException e) {
+			if (reportCommand) {
+				Command deviationCommand = Command.newBuilder() .setCommand(e.getDeviation()).build();
+				producer.sendCommand(deviationCommand);
+			} else {
+				throw e;
+			}
+		}
+		if (reportCommand) {
+			producer.sendCommand(cmd);
+		}
+
 		System.out.println("done handling " + commandData.getClass().getName());
+	}
+
+	public void handle(Command cmd) throws ReportDeviationException {
+		try {
+			handle(cmd, false);
+		} catch (IOException e) {
+			// should not happen with reportCommand = false
+			e.printStackTrace();
+		}
 	}
 
 	public void setXMI(String modelXMI) throws IOException {

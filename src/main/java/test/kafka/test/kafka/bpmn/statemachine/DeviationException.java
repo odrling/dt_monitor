@@ -10,17 +10,17 @@ import org.eclipse.bpmn2.Event;
 import org.eclipse.bpmn2.FlowNode;
 import org.eclipse.bpmn2.Gateway;
 
-public class Deviation extends Exception {
+public class DeviationException extends Exception {
 
 	private Action action;
 	private Set<State> missingStates;
 
-	public Deviation(Action action, Set<State> missingStates) {
+	public DeviationException(Action action, Set<State> missingStates) {
 		this.action = action;
 		this.missingStates = missingStates;
 	}
 
-	public Deviation(Action action) {
+	public DeviationException(Action action) {
 		this(action, new HashSet<>());
 	}
 

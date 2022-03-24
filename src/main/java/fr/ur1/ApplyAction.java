@@ -7,9 +7,9 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 
 import test.kafka.test.kafka.bpmn.Consumer;
-import test.kafka.test.kafka.bpmn.EObjectNotFound;
 import test.kafka.test.kafka.bpmn.Model;
 import test.kafka.test.kafka.bpmn.Producer;
+import test.kafka.test.kafka.bpmn.ReportDeviationException;
 import test.kafka.test.kafka.bpmn.avro.Command;
 import test.kafka.test.kafka.bpmn.avro.ElementEvent;
 
@@ -30,12 +30,12 @@ public class ApplyAction {
         Command cmd = new Command();
         cmd.setCommand(event);
         try {
-            model.findID(event.getElementID());
-            producer.sendCommand(cmd);
-        } catch (EObjectNotFound e) {
-            // failed to find node
+            model.handle(cmd, true);
         } catch (IOException e) {
-			// TODO Auto-generated catch block
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (ReportDeviationException e) {
+            // should not happen
 			e.printStackTrace();
 		}
         return event;
