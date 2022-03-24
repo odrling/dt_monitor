@@ -32,31 +32,25 @@ import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
 
 import test.kafka.test.kafka.bpmn.avro.Command;
 
-@Singleton
 public class Consumer {
 
-	@Inject
-	Model model;
-
+	private Model model;
 	private KafkaConsumer<byte[], byte[]> consumer;
 
-	@PostConstruct
-	public void init() {
+	public Consumer(Model model, String topic) {
+		this.model = model;
+
 		final Properties props = new Properties();
 		props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
 		props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
 		props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
 		props.put(ConsumerConfig.GROUP_ID_CONFIG, "consumer-group");
 
-		final String topic = "my_topic11";
-
 		consumer = new KafkaConsumer<>(props);
 		TopicPartition tp = new TopicPartition(topic, 0);
 
 		consumer.assign(Collections.singletonList(tp));
 		consumer.seek(tp, 0);
-
-		consumerLoop();
 	}
 
 	@PreDestroy
@@ -64,7 +58,7 @@ public class Consumer {
 		consumer.close();
 	}
 
-	public void consumerLoop() {
+	public void consumerReadBack() {
 		final ConsumerRecords<byte[], byte[]> consumerRecords = consumer.poll(Duration.ofMillis(1000));
 
 		if (consumerRecords.count() == 0) {

@@ -41,14 +41,15 @@ import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
 
 import test.kafka.test.kafka.bpmn.avro.Command;
 
-@Singleton
 public class Producer {
 
 	final static ObjectMapper mapper = new ObjectMapper();
 	private KafkaProducer<byte[], byte[]> producer;
+	private String topic;
 
-	@PostConstruct
-	public void init() {
+	public Producer(String topic) {
+		this.topic = topic;
+
 		final Properties props = new Properties();
 		props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
 		props.put(ProducerConfig.ACKS_CONFIG, "all");
@@ -63,14 +64,12 @@ public class Producer {
 	}
 
 	public void sendCommand(Command command) throws IOException {
-		String topic = "my_topic11";
-
 		ByteArrayOutputStream oStream = new ByteArrayOutputStream();
 		BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(oStream, null);
 		DatumWriter<Command> writer = new SpecificDatumWriter<>(Command.getClassSchema());
 		writer.write(command, encoder);
 
-		ProducerRecord<byte[], byte[]> r = new ProducerRecord<>(topic, oStream.toByteArray());
+		ProducerRecord<byte[], byte[]> r = new ProducerRecord<>(this.topic, oStream.toByteArray());
 		producer.send(r);
 	}
 

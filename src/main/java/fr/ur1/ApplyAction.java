@@ -6,9 +6,7 @@ import javax.inject.Inject;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 
-import test.kafka.test.kafka.bpmn.Consumer;
 import test.kafka.test.kafka.bpmn.Model;
-import test.kafka.test.kafka.bpmn.Producer;
 import test.kafka.test.kafka.bpmn.ReportDeviationException;
 import test.kafka.test.kafka.bpmn.avro.Command;
 import test.kafka.test.kafka.bpmn.avro.ElementEvent;
@@ -18,12 +16,6 @@ public class ApplyAction {
 
     @Inject
     Model model;
-
-    @Inject
-    Consumer consumer;
-
-    @Inject
-    Producer producer;
 
     @POST
     public ElementEvent applyAction(ElementEvent event) {

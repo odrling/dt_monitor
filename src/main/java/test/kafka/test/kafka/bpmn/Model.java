@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
@@ -27,7 +28,6 @@ import test.kafka.test.kafka.bpmn.avro.Deviation;
 import test.kafka.test.kafka.bpmn.avro.ElementEvent;
 import test.kafka.test.kafka.bpmn.avro.SetXMICommand;
 import test.kafka.test.kafka.bpmn.avro.action;
-import test.kafka.test.kafka.bpmn.avro.event;
 import test.kafka.test.kafka.bpmn.statemachine.Action;
 import test.kafka.test.kafka.bpmn.statemachine.DeviationException;
 import test.kafka.test.kafka.bpmn.statemachine.StateMachine;
@@ -39,8 +39,8 @@ public class Model {
 	private DocumentRoot root;
 	private StateMachine stateMachine;
 
-	@Inject
 	private Producer producer;
+	private Consumer consumer;
 
 	public DocumentRoot getRoot() {
 		return root;
@@ -50,8 +50,13 @@ public class Model {
 		this.root = root;
 	}
 
-	public Model() {
+	@PostConstruct
+	public void init() {
 		this.root = null;
+		String topic = "model-trace";
+		this.consumer = new Consumer(this, topic);
+		this.producer = new Producer(topic);
+		consumer.consumerReadBack();
 	}
 
 	private interface Handler {
