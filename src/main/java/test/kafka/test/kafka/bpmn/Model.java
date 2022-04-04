@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.UUID;
 
 import javax.annotation.PostConstruct;
-import javax.inject.Inject;
 import javax.inject.Singleton;
 
 import org.eclipse.bpmn2.Bpmn2Package;
@@ -32,6 +31,8 @@ import test.kafka.test.kafka.bpmn.statemachine.Action;
 import test.kafka.test.kafka.bpmn.statemachine.DeviationException;
 import test.kafka.test.kafka.bpmn.statemachine.StateMachine;
 import test.kafka.test.kafka.bpmn.statemachine.Status;
+import test.kafka.test.kafka.deviations.avro.DeviationCommand;
+import test.kafka.test.kafka.deviations.avro.DeviationEvent;
 
 @Singleton
 public class Model {
@@ -40,6 +41,7 @@ public class Model {
 	private StateMachine stateMachine;
 
 	private Producer producer;
+	private DeviationProducer deviationProducer;
 	private Consumer consumer;
 
 	public DocumentRoot getRoot() {
@@ -56,6 +58,7 @@ public class Model {
 		String topic = "model-trace";
 		this.consumer = new Consumer(this, topic);
 		this.producer = new Producer(topic);
+		this.deviationProducer = new DeviationProducer("model-deviations");
 		consumer.consumerReadBack();
 	}
 
@@ -124,8 +127,14 @@ public class Model {
 			handler.handle(this, commandData);
 		} catch (ReportDeviationException e) {
 			if (reportCommand) {
-				Command deviationCommand = Command.newBuilder() .setCommand(e.getDeviation()).build();
+				Command deviationCommand = Command.newBuilder().setCommand(e.getDeviation()).build();
 				producer.sendCommand(deviationCommand);
+				DeviationEvent deviationEvent = DeviationEvent.newBuilder().setEvent(e.getDeviation().getEvent()).build();
+				DeviationCommand devCmd = DeviationCommand.newBuilder()
+					.setDeviationID(e.getDeviation().getDeviationID())
+					.setModelTopic(this.producer.getTopic())
+					.setCommand(deviationEvent).build();
+				deviationProducer.sendCommand(devCmd);
 			} else {
 				throw e;
 			}

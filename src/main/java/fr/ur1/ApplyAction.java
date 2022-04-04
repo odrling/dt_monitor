@@ -28,8 +28,8 @@ public class ApplyAction {
             e.printStackTrace();
         } catch (ReportDeviationException e) {
             // should not happen
-			e.printStackTrace();
-		}
+            e.printStackTrace();
+        }
         return event;
     }
 
