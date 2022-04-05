@@ -1,0 +1,71 @@
+{
+    "type": "record",
+    "name": "DeviationCommand",
+    "fields": [
+        {
+            "name": "deviationID",
+            "type": "string"
+        },
+        {
+            "name": "modelTopic",
+            "type": "string"
+        },
+        {
+            "name": "command",
+            "type": [
+                {
+                    "type": "record",
+                    "name": "DeviationEvent",
+                    "fields": [
+                        {
+                            "name": "event",
+                            "type": {
+                                "type": "record",
+                                "name": "ElementEvent",
+                                "fields": [
+                                    {
+                                        "name": "elementID",
+                                        "type": "string"
+                                    },
+                                    {
+                                        "name": "action",
+                                        "type": {
+                                            "type": "enum",
+                                            "name": "action",
+                                            "symbols": [
+                                                "Start",
+                                                "End"
+                                            ]
+                                        }
+                                    }
+                                ],
+                                "doc": "Events on a workflow element",
+                                "namespace": "test.kafka.test.kafka.bpmn.avro"
+                            }
+                        }
+                    ],
+                    "doc": "Deviation occuring in the workflow",
+                    "namespace": "test.kafka.test.kafka.deviations.avro"
+                },
+                {
+                    "type": "record",
+                    "name": "DeviationAnalysis",
+                    "fields": [
+                        {
+                            "name": "reason",
+                            "type": "string"
+                        },
+                        {
+                            "name": "relatedNodeID",
+                            "type": "string"
+                        }
+                    ],
+                    "doc": "DeviationAnalysis(reason: str, relatedNodeID: str)",
+                    "namespace": "test.kafka.test.kafka.deviations.avro"
+                }
+            ]
+        }
+    ],
+    "doc": "DeviationCommand(deviationID: str, modelTopic: str, command: Union[deviation_commands.DeviationEvent, deviation_commands.DeviationAnalysis])",
+    "namespace": "test.kafka.test.kafka.deviations.avro"
+}

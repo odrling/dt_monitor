@@ -53,6 +53,24 @@ public class StateMachine {
 		return false;
 	}
 
+	public boolean isAllowed(Action action) {
+		if (!transitions.containsKey(action)) {
+			return false;
+		}
+
+		Map<State, Map<State, Transition>> actionTransitions = new HashMap<>(transitions.get(action));
+		Set<State> transitionStates = new HashSet<>(this.activeStates);
+		transitionStates.retainAll(actionTransitions.keySet());
+
+		for (State state: transitionStates) {
+			for (Transition t : actionTransitions.get(state).values()) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	synchronized public void applyAction(Action action) throws DeviationException {
 		System.out.println(action);
 		System.out.println(this.activeStates);
@@ -76,7 +94,6 @@ public class StateMachine {
 		if (transitionStates.isEmpty()) {
 			throw new DeviationException(action, actionTransitions.keySet());
 		}
-
 
 		while (!toDoTransitions.isEmpty()) {
 			for (Transition transition : toDoTransitions) {
@@ -126,10 +143,10 @@ public class StateMachine {
 		while (!nodesToExplore.isEmpty()) {
 			FlowNode node = nodesToExplore.remove(0);
 			states.put(node, new HashMap<>());
-			states.get(node).put(Status.COMPLETED, new State(node, Status.COMPLETED));
+			states.get(node).put(Status.COMPLETED, State.get(node, Status.COMPLETED));
 
 			if (node instanceof Activity) {
-				states.get(node).put(Status.ACTIVE, new State(node, Status.ACTIVE));
+				states.get(node).put(Status.ACTIVE, State.get(node, Status.ACTIVE));
 				Action action = Action.get(node, Status.COMPLETED);
 				Transition transition = new Transition(
 						action, states.get(node).get(Status.ACTIVE), states.get(node).get(Status.COMPLETED));
@@ -155,7 +172,7 @@ public class StateMachine {
 					}
 				}
 
-				State inputState = new State(gateway, Status.ACTIVE);
+				State inputState = State.get(gateway, Status.ACTIVE);
 				Transition gatewayTransition = new Transition(Action.get(null, null), inputState, states.get(gateway).get(Status.COMPLETED), gateway.getIncoming().size(), gateway.getOutgoing().size());
 				addTransition(transitions, gatewayTransition);
 
