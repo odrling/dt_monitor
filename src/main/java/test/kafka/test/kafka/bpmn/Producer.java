@@ -55,6 +55,9 @@ public class Producer {
 		DatumWriter<Command> writer = new SpecificDatumWriter<>(Command.getClassSchema());
 		writer.write(command, encoder);
 
+		if (oStream.size() == 0) {
+			return; // TODO: store actions
+		}
 		ProducerRecord<byte[], byte[]> r = new ProducerRecord<>(this.topic, oStream.toByteArray());
 		producer.send(r);
 	}

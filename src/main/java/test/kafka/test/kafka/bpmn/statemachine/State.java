@@ -6,7 +6,7 @@ import java.util.Map;
 import org.eclipse.bpmn2.FlowNode;
 
 public class State {
-	private static Map<FlowNode, Map<Status, State>> states;
+	private static Map<FlowNode, Map<Status, State>> states = new HashMap<>();
 	private FlowNode node;
 	private Status status;
 

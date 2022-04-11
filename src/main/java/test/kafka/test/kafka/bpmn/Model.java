@@ -38,6 +38,7 @@ import test.kafka.test.kafka.deviations.avro.DeviationEvent;
 public class Model {
 
 	private DocumentRoot root;
+	private Monitor monitor;
 	private StateMachine stateMachine;
 
 	private Producer producer;
@@ -55,6 +56,7 @@ public class Model {
 	@PostConstruct
 	public void init() {
 		this.root = null;
+		this.monitor = null;
 		String topic = "model-trace";
 		this.consumer = new Consumer(this, topic);
 		this.producer = new Producer(topic);
@@ -86,6 +88,7 @@ public class Model {
 			@Override
 			public void handle(Model model, Object cmdData) throws ReportDeviationException {
 				ElementEvent commandData = (ElementEvent) cmdData;
+				model.monitor.check(commandData);
 
 				FlowNode node;
 				try {
@@ -108,6 +111,7 @@ public class Model {
 				try {
 					model.stateMachine.applyAction(act);
 				} catch (DeviationException e) {
+					System.out.println("DEVIATION");
 					System.out.println(e.getRelatedNodes());
 					Deviation deviation = Deviation.newBuilder()
 						.setEvent(commandData)
@@ -170,6 +174,7 @@ public class Model {
 
 		this.root = (DocumentRoot) resource.getContents().get(0);
 		this.stateMachine = StateMachine.fromBPMNRoot(this.root);
+		this.monitor = new Monitor(this.root);
 	}
 
 	public EObject findID(String id) throws EObjectNotFound {

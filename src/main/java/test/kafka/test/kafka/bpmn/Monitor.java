@@ -1,5 +1,8 @@
 package test.kafka.test.kafka.bpmn;
 
+import java.util.LinkedList;
+import java.util.List;
+
 import org.eclipse.bpmn2.DocumentRoot;
 import org.eclipse.bpmn2.FlowNode;
 import org.eclipse.emf.ecore.EObject;
@@ -15,10 +18,22 @@ public class Monitor {
 
 	private DocumentRoot root;
 	private StateMachine stateMachine;
+	private List<Rule> rules;
 
 	public Monitor(DocumentRoot root) {
 		this.root = root;
 		this.stateMachine = StateMachine.fromBPMNRoot(root);
+		this.rules = new LinkedList<>();
+		this.rules.add(new FlowNodeSequenceRule());
+	}
+
+	public boolean check(ElementEvent event) {
+		for (Rule rule: this.rules) {
+			if (!rule.check(this, event)) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	public FlowNode findID(String id) throws EObjectNotFound {

@@ -103,7 +103,7 @@ public class StateMachine {
 
 			if (transitions.containsKey(Action.get(null, null))) {
 				actionTransitions = transitions.get(Action.get(null, null));
-				System.out.println("null trans: " + actionTransitions);
+				// System.out.println("null trans: " + actionTransitions);
 				transitionStates = new HashSet<>(this.activeStates);
 				transitionStates.retainAll(actionTransitions.keySet());
 
@@ -115,7 +115,7 @@ public class StateMachine {
 				}
 				toDoTransitions.removeAll(doneTransitions);
 			} else {
-				System.out.println("no null trans");
+				// System.out.println("no null trans");
 				break;
 			}
 		}
