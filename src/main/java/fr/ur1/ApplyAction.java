@@ -6,7 +6,7 @@ import javax.inject.Inject;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 
-import test.kafka.test.kafka.bpmn.Model;
+import test.kafka.test.kafka.bpmn.ModelRunner;
 import test.kafka.test.kafka.bpmn.ReportDeviationException;
 import test.kafka.test.kafka.bpmn.avro.Command;
 import test.kafka.test.kafka.bpmn.avro.ElementEvent;
@@ -15,7 +15,7 @@ import test.kafka.test.kafka.bpmn.avro.ElementEvent;
 public class ApplyAction {
 
     @Inject
-    Model model;
+    ModelRunner model;
 
     @POST
     public ElementEvent applyAction(ElementEvent event) {

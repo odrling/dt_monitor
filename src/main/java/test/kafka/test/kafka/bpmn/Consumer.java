@@ -34,10 +34,10 @@ import test.kafka.test.kafka.bpmn.avro.Command;
 
 public class Consumer {
 
-	private Model model;
+	private ModelRunner model;
 	private KafkaConsumer<byte[], byte[]> consumer;
 
-	public Consumer(Model model, String topic) {
+	public Consumer(ModelRunner model, String topic) {
 		this.model = model;
 
 		final Properties props = new Properties();

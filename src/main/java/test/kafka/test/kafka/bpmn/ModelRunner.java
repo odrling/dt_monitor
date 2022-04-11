@@ -35,7 +35,7 @@ import test.kafka.test.kafka.deviations.avro.DeviationCommand;
 import test.kafka.test.kafka.deviations.avro.DeviationEvent;
 
 @Singleton
-public class Model {
+public class ModelRunner {
 
 	private DocumentRoot root;
 	private Monitor monitor;
@@ -66,7 +66,7 @@ public class Model {
 
 	private interface Handler {
 
-		void handle(Model model, Object commandData) throws ReportDeviationException;
+		void handle(ModelRunner model, Object commandData) throws ReportDeviationException;
 
 	}
 
@@ -74,7 +74,7 @@ public class Model {
 	static {
 		dispatch.put(SetXMICommand.class, new Handler() {
 			@Override
-			public void handle(Model model, Object cmdData) {
+			public void handle(ModelRunner model, Object cmdData) {
 				SetXMICommand commandData = (SetXMICommand) cmdData;
 				try {
 					model.setXMI(commandData.getSetXmi());
@@ -86,7 +86,7 @@ public class Model {
 
 		dispatch.put(ElementEvent.class, new Handler() {
 			@Override
-			public void handle(Model model, Object cmdData) throws ReportDeviationException {
+			public void handle(ModelRunner model, Object cmdData) throws ReportDeviationException {
 				ElementEvent commandData = (ElementEvent) cmdData;
 				model.monitor.check(commandData);
 
@@ -111,21 +111,23 @@ public class Model {
 				try {
 					model.stateMachine.applyAction(act);
 				} catch (DeviationException e) {
-					System.out.println("DEVIATION");
-					System.out.println(e.getRelatedNodes());
+					System.out.println(" DEVIATION ");
+					// System.out.println(e.getRelatedNodes());
 					Deviation deviation = Deviation.newBuilder()
 						.setEvent(commandData)
 						.setDeviationID(UUID.randomUUID().toString())
 						.build();
 					throw new ReportDeviationException(deviation);
 				}
+
+				model.monitor.monitor(commandData);
 			}
 		});
 	}
 
 	public void handle(Command cmd, boolean reportCommand) throws IOException, ReportDeviationException {
 		Object commandData = cmd.getCommand();
-		System.out.println("handling " + commandData.getClass().getName());
+		System.out.println("\nhandling " + commandData.getClass().getName());
 		Handler handler = dispatch.get(commandData.getClass());
 		try {
 			handler.handle(this, commandData);

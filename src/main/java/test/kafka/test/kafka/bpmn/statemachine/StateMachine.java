@@ -73,7 +73,7 @@ public class StateMachine {
 
 	synchronized public void applyAction(Action action) throws DeviationException {
 		System.out.println(action);
-		System.out.println(this.activeStates);
+		// System.out.println(this.activeStates);
 		if (!transitions.containsKey(action)) {
 			throw new DeviationException(action);
 		}
