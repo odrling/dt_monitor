@@ -21,6 +21,11 @@ import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.resource.ResourceSet;
 import org.eclipse.emf.ecore.resource.impl.ResourceFactoryImpl;
 import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
+import org.flowable.engine.ProcessEngine;
+import org.flowable.engine.ProcessEngines;
+import org.flowable.engine.RuntimeService;
+import org.kie.kogito.incubation.processes.services.StraightThroughProcessService;
+import org.kie.kogito.process.ProcessService;
 
 import test.kafka.test.kafka.bpmn.avro.Command;
 import test.kafka.test.kafka.bpmn.avro.Deviation;
@@ -162,6 +167,14 @@ public class ModelRunner {
 	}
 
 	public void setXMI(String modelXMI) throws IOException {
+		ProcessEngine processEngine = ProcessEngines.getDefaultProcessEngine();
+		RuntimeService runtimeService = processEngine.getRuntimeService();
+
+		var repositoryService = processEngine.getRepositoryService();
+		repositoryService.createDeployment().addString("test", modelXMI);
+
+		runtimeService.startProcessInstanceByKey("test");
+
 		ResourceFactoryImpl bpmnFactory = new Bpmn2ResourceFactoryImpl();
 
 		if (!EPackage.Registry.INSTANCE.containsKey(Bpmn2Package.eNS_URI)) {
