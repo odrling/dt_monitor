@@ -26,10 +26,6 @@
                             "type": "string"
                         },
                         {
-                            "name": "timestamp",
-                            "type": "long"
-                        },
-                        {
                             "name": "action",
                             "type": {
                                 "type": "enum",
@@ -61,8 +57,12 @@
                     "namespace": "test.kafka.test.kafka.bpmn.avro"
                 }
             ]
+        },
+        {
+            "name": "timestamp",
+            "type": "long"
         }
     ],
-    "doc": "Command(command: Union[commands.SetXMICommand, commands.ElementEvent, commands.Deviation])",
+    "doc": "Command(command: Union[commands.SetXMICommand, commands.ElementEvent, commands.Deviation], timestamp: int)",
     "namespace": "test.kafka.test.kafka.bpmn.avro"
 }

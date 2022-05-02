@@ -28,10 +28,6 @@
                                         "type": "string"
                                     },
                                     {
-                                        "name": "timestamp",
-                                        "type": "long"
-                                    },
-                                    {
                                         "name": "action",
                                         "type": {
                                             "type": "enum",

@@ -4,11 +4,14 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import javax.annotation.PostConstruct;
+import javax.inject.Inject;
 import javax.inject.Singleton;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.eclipse.bpmn2.Bpmn2Package;
 import org.eclipse.bpmn2.DocumentRoot;
@@ -21,34 +24,54 @@ import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.resource.ResourceSet;
 import org.eclipse.emf.ecore.resource.impl.ResourceFactoryImpl;
 import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
-import org.flowable.engine.ProcessEngine;
-import org.flowable.engine.ProcessEngines;
-import org.flowable.engine.RuntimeService;
-import org.kie.kogito.incubation.processes.services.StraightThroughProcessService;
-import org.kie.kogito.process.ProcessService;
+import org.eclipse.microprofile.reactive.messaging.Incoming;
+import org.eclipse.microprofile.reactive.messaging.Message;
+import org.kie.kogito.incubation.application.AppRoot;
+import org.kie.kogito.incubation.common.ExtendedDataContext;
+import org.kie.kogito.incubation.common.MapDataContext;
+import org.kie.kogito.incubation.processes.LocalProcessId;
+import org.kie.kogito.incubation.processes.ProcessIds;
+import org.kie.kogito.incubation.processes.ProcessInstanceId;
+import org.kie.kogito.incubation.processes.TaskInstanceId;
+import org.kie.kogito.incubation.processes.services.StatefulProcessService;
+import org.kie.kogito.incubation.processes.services.contexts.Policy;
+import org.kie.kogito.incubation.processes.services.contexts.ProcessMetaDataContext;
+import org.kie.kogito.incubation.processes.services.contexts.TaskMetaDataContext;
+import org.kie.kogito.incubation.processes.services.contexts.TaskWorkItemDataContext;
+import org.kie.kogito.incubation.processes.services.humantask.HumanTaskService;
 
+import io.smallrye.mutiny.Uni;
+import io.smallrye.reactive.messaging.annotations.Blocking;
 import test.kafka.test.kafka.bpmn.avro.Command;
-import test.kafka.test.kafka.bpmn.avro.Deviation;
 import test.kafka.test.kafka.bpmn.avro.ElementEvent;
 import test.kafka.test.kafka.bpmn.avro.SetXMICommand;
 import test.kafka.test.kafka.bpmn.avro.action;
-import test.kafka.test.kafka.bpmn.statemachine.Action;
-import test.kafka.test.kafka.bpmn.statemachine.DeviationException;
-import test.kafka.test.kafka.bpmn.statemachine.StateMachine;
-import test.kafka.test.kafka.bpmn.statemachine.Status;
-import test.kafka.test.kafka.deviations.avro.DeviationCommand;
-import test.kafka.test.kafka.deviations.avro.DeviationEvent;
 
 @Singleton
 public class ModelRunner {
 
 	private DocumentRoot root;
-	private Monitor monitor;
-	private StateMachine stateMachine;
 
-	private Producer producer;
-	private DeviationProducer deviationProducer;
-	private Consumer consumer;
+	private ExtendedDataContext process;
+
+	@Inject
+	TraceService traceService;
+
+	@Inject
+	TimeMonitor timeMonitor;
+
+	@Inject
+	AppRoot appRoot;
+
+	@Inject
+	ObjectMapper mapper;
+
+	@Inject
+	StatefulProcessService processSvc;
+
+	@Inject
+	HumanTaskService taskSvc;
+	private ProcessInstanceId pid;
 
 	public DocumentRoot getRoot() {
 		return root;
@@ -61,17 +84,28 @@ public class ModelRunner {
 	@PostConstruct
 	public void init() {
 		this.root = null;
-		this.monitor = null;
-		String topic = "model-trace";
-		this.consumer = new Consumer(this, topic);
-		this.producer = new Producer(topic);
-		this.deviationProducer = new DeviationProducer("model-deviations");
-		consumer.consumerReadBack();
+
+		try {
+			for (Command cmd: traceService.playback()) {
+				try {
+					this.handle(cmd, false);
+				} catch (ReportDeviationException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		} catch (ClassNotFoundException | IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 	private interface Handler {
 
-		void handle(ModelRunner model, Object commandData) throws ReportDeviationException;
+		void handle(ModelRunner model, Object commandData, Long timestamp) throws ReportDeviationException;
 
 	}
 
@@ -79,10 +113,10 @@ public class ModelRunner {
 	static {
 		dispatch.put(SetXMICommand.class, new Handler() {
 			@Override
-			public void handle(ModelRunner model, Object cmdData) {
+			public void handle(ModelRunner model, Object cmdData, Long timestamp) {
 				SetXMICommand commandData = (SetXMICommand) cmdData;
 				try {
-					model.setXMI(commandData.getSetXmi());
+					model.setXMI(commandData.getSetXmi(), timestamp);
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
@@ -91,41 +125,32 @@ public class ModelRunner {
 
 		dispatch.put(ElementEvent.class, new Handler() {
 			@Override
-			public void handle(ModelRunner model, Object cmdData) throws ReportDeviationException {
+			public void handle(ModelRunner model, Object cmdData, Long timestamp) throws ReportDeviationException {
 				ElementEvent commandData = (ElementEvent) cmdData;
-				model.monitor.check(commandData);
 
-				FlowNode node;
-				try {
-					node = (FlowNode) model.findID(commandData.getElementID());
-				} catch (EObjectNotFound e) {
-					System.out.println("Could not find " + commandData.getElementID());
-					e.printStackTrace();
-					return;
-				}
-
-				Action act;
-				if (commandData.getAction() == action.Start) {
-					act = Action.get(node, Status.ACTIVE);
-				} else if (commandData.getAction() == action.End) {
-					act = Action.get(node, Status.COMPLETED);
-				} else {
+				if (commandData.getAction() != action.Start && commandData.getAction() != action.End) {
 					throw new RuntimeException("invalid event status");
 				}
 
-				try {
-					model.stateMachine.applyAction(act);
-				} catch (DeviationException e) {
-					System.out.println(" DEVIATION ");
-					// System.out.println(e.getRelatedNodes());
-					Deviation deviation = Deviation.newBuilder()
-						.setEvent(commandData)
-						.setDeviationID(UUID.randomUUID().toString())
-						.build();
-					throw new ReportDeviationException(deviation);
+				/// set policies for the task (as metadata)
+				TaskMetaDataContext taskMeta = TaskMetaDataContext.of(Policy.of("admin", List.of("managers")));
+
+				ExtendedDataContext tasks = model.taskSvc.get(model.pid.tasks(), taskMeta);
+				List<TaskInstanceId> taskIdList = tasks.meta().as(TaskWorkItemDataContext.class).tasks();
+
+				for (TaskInstanceId taskId: taskIdList) {
+					System.out.println("task available: " + taskId.taskId().taskId());
+					if (commandData.getElementID().equals(taskId.taskId().taskId())) {
+						model.timeMonitor.monitor(commandData, timestamp);
+						if (commandData.getAction() == action.End) {
+							model.taskSvc.complete(taskId, MapDataContext.create());
+						}
+						return;
+					}
 				}
 
-				model.monitor.monitor(commandData);
+				// deviation
+				System.out.println("DEVIATION: invalid action");
 			}
 		});
 	}
@@ -135,26 +160,38 @@ public class ModelRunner {
 		System.out.println("\nhandling " + commandData.getClass().getName());
 		Handler handler = dispatch.get(commandData.getClass());
 		try {
-			handler.handle(this, commandData);
+			handler.handle(this, commandData, cmd.getTimestamp());
 		} catch (ReportDeviationException e) {
 			if (reportCommand) {
 				Command deviationCommand = Command.newBuilder().setCommand(e.getDeviation()).build();
-				producer.sendCommand(deviationCommand);
-				DeviationEvent deviationEvent = DeviationEvent.newBuilder().setEvent(e.getDeviation().getEvent()).build();
-				DeviationCommand devCmd = DeviationCommand.newBuilder()
-					.setDeviationID(e.getDeviation().getDeviationID())
-					.setModelTopic(this.producer.getTopic())
-					.setCommand(deviationEvent).build();
-				deviationProducer.sendCommand(devCmd);
+				traceService.save(deviationCommand);
+
+				// DeviationEvent deviationEvent = DeviationEvent.newBuilder().setEvent(e.getDeviation().getEvent()).build();
+				// DeviationCommand devCmd = DeviationCommand.newBuilder()
+				// 	.setDeviationID(e.getDeviation().getDeviationID())
+				// 	.setModelTopic(this.producer.getTopic())
+				// 	.setCommand(deviationEvent).build();
+				// deviationProducer.sendCommand(devCmd);
 			} else {
 				throw e;
 			}
 		}
 		if (reportCommand) {
-			producer.sendCommand(cmd);
+			traceService.save(cmd);
 		}
 
 		System.out.println("done handling " + commandData.getClass().getName());
+	}
+
+	public void monitorWaitingTime(Long taskTime) {
+		TaskMetaDataContext taskMeta = TaskMetaDataContext.of(Policy.of("admin", List.of("managers")));
+
+		ExtendedDataContext tasks = this.taskSvc.get(this.pid.tasks(), taskMeta);
+		List<TaskInstanceId> taskIdList = tasks.meta().as(TaskWorkItemDataContext.class).tasks();
+
+		for (TaskInstanceId taskId: taskIdList) {
+			this.timeMonitor.monitorWaiting(taskId.taskId().taskId(), taskTime);
+		}
 	}
 
 	public void handle(Command cmd) throws ReportDeviationException {
@@ -166,14 +203,14 @@ public class ModelRunner {
 		}
 	}
 
-	public void setXMI(String modelXMI) throws IOException {
-		ProcessEngine processEngine = ProcessEngines.getDefaultProcessEngine();
-		RuntimeService runtimeService = processEngine.getRuntimeService();
+	public void setXMI(String modelXMI, Long timestamp) throws IOException {
+		LocalProcessId id = appRoot.get(ProcessIds.class).get("process_1");
+		MapDataContext ctx = mapper.readValue("{}", MapDataContext.class);
 
-		var repositoryService = processEngine.getRepositoryService();
-		repositoryService.createDeployment().addString("test", modelXMI);
+		this.process = processSvc.create(id, ctx);
+		this.pid = this.process.meta().as(ProcessMetaDataContext.class).id(ProcessInstanceId.class);
 
-		runtimeService.startProcessInstanceByKey("test");
+		this.monitorWaitingTime(timestamp);
 
 		ResourceFactoryImpl bpmnFactory = new Bpmn2ResourceFactoryImpl();
 
@@ -188,8 +225,7 @@ public class ModelRunner {
 		resource.load(in, rs.getLoadOptions());
 
 		this.root = (DocumentRoot) resource.getContents().get(0);
-		this.stateMachine = StateMachine.fromBPMNRoot(this.root);
-		this.monitor = new Monitor(this.root);
+		this.timeMonitor = new TimeMonitor();
 	}
 
 	public EObject findID(String id) throws EObjectNotFound {
@@ -210,6 +246,12 @@ public class ModelRunner {
 			}
 		}
 		throw new EObjectNotFound(id);
+	}
+
+	@Incoming("model-input")
+	@Blocking
+	public void commandInput(Command command) throws IOException, ReportDeviationException {
+		this.handle(command, true);
 	}
 
 }

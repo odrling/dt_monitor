@@ -1,36 +1,28 @@
 package fr.ur1;
 
-import java.io.IOException;
-
 import javax.inject.Inject;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 
-import test.kafka.test.kafka.bpmn.ModelRunner;
-import test.kafka.test.kafka.bpmn.ReportDeviationException;
-import test.kafka.test.kafka.bpmn.avro.Command;
-import test.kafka.test.kafka.bpmn.avro.ElementEvent;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
+import org.eclipse.microprofile.reactive.messaging.OnOverflow;
 
-@Path("/action")
+import test.kafka.test.kafka.bpmn.avro.Command;
+
+@Path("/command")
 public class ApplyAction {
 
+    @OnOverflow(OnOverflow.Strategy.DROP)
     @Inject
-    ModelRunner model;
+    @Channel("model-feed")
+    Emitter<Command> emitter;
 
     @POST
-    public ElementEvent applyAction(ElementEvent event) {
-        Command cmd = new Command();
-        cmd.setCommand(event);
-        try {
-            model.handle(cmd, true);
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } catch (ReportDeviationException e) {
-            // should not happen
-            e.printStackTrace();
-        }
-        return event;
+    public Command applyAction(Command command) {
+        System.out.println(command);
+        emitter.send(command);
+        return command;
     }
 
 }
