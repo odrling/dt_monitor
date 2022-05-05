@@ -10,12 +10,16 @@
                     "name": "SetXMICommand",
                     "fields": [
                         {
-                            "name": "set_xmi",
+                            "name": "model",
                             "type": "string"
+                        },
+                        {
+                            "name": "timestamp",
+                            "type": "long"
                         }
                     ],
                     "doc": "Set model XMI",
-                    "namespace": "test.kafka.test.kafka.bpmn.avro"
+                    "namespace": "avro.monitor.commands"
                 },
                 {
                     "type": "record",
@@ -35,10 +39,14 @@
                                     "End"
                                 ]
                             }
+                        },
+                        {
+                            "name": "timestamp",
+                            "type": "long"
                         }
                     ],
                     "doc": "Events on a workflow element",
-                    "namespace": "test.kafka.test.kafka.bpmn.avro"
+                    "namespace": "avro.monitor.commands"
                 },
                 {
                     "type": "record",
@@ -50,19 +58,19 @@
                         },
                         {
                             "name": "event",
-                            "type": "test.kafka.test.kafka.bpmn.avro.ElementEvent"
+                            "type": "avro.monitor.commands.ElementEvent"
+                        },
+                        {
+                            "name": "timestamp",
+                            "type": "long"
                         }
                     ],
                     "doc": "Deviation occuring in the workflow",
-                    "namespace": "test.kafka.test.kafka.bpmn.avro"
+                    "namespace": "avro.monitor.commands"
                 }
             ]
-        },
-        {
-            "name": "timestamp",
-            "type": "long"
         }
     ],
-    "doc": "Command(command: Union[commands.SetXMICommand, commands.ElementEvent, commands.Deviation], timestamp: int)",
-    "namespace": "test.kafka.test.kafka.bpmn.avro"
+    "doc": "Command(command: Union[commands.SetXMICommand, commands.ElementEvent, commands.Deviation])",
+    "namespace": "avro.monitor.commands"
 }

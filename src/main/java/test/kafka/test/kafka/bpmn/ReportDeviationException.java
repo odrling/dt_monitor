@@ -1,6 +1,6 @@
 package test.kafka.test.kafka.bpmn;
 
-import test.kafka.test.kafka.bpmn.avro.Deviation;
+import avro.monitor.commands.Deviation;
 
 public class ReportDeviationException extends Exception {
 

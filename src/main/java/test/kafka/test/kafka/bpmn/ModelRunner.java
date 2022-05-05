@@ -3,11 +3,10 @@ package test.kafka.test.kafka.bpmn;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import javax.annotation.PostConstruct;
+import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
@@ -25,7 +24,6 @@ import org.eclipse.emf.ecore.resource.ResourceSet;
 import org.eclipse.emf.ecore.resource.impl.ResourceFactoryImpl;
 import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
-import org.eclipse.microprofile.reactive.messaging.Message;
 import org.kie.kogito.incubation.application.AppRoot;
 import org.kie.kogito.incubation.common.ExtendedDataContext;
 import org.kie.kogito.incubation.common.MapDataContext;
@@ -40,14 +38,14 @@ import org.kie.kogito.incubation.processes.services.contexts.TaskMetaDataContext
 import org.kie.kogito.incubation.processes.services.contexts.TaskWorkItemDataContext;
 import org.kie.kogito.incubation.processes.services.humantask.HumanTaskService;
 
-import io.smallrye.mutiny.Uni;
-import io.smallrye.reactive.messaging.annotations.Blocking;
-import test.kafka.test.kafka.bpmn.avro.Command;
-import test.kafka.test.kafka.bpmn.avro.ElementEvent;
-import test.kafka.test.kafka.bpmn.avro.SetXMICommand;
-import test.kafka.test.kafka.bpmn.avro.action;
+import avro.monitor.commands.Command;
+import avro.monitor.commands.ElementEvent;
+import avro.monitor.commands.SetXMICommand;
+import avro.monitor.commands.action;
+import io.smallrye.common.annotation.Blocking;
+import io.vertx.core.json.JsonObject;
 
-@Singleton
+@ApplicationScoped
 public class ModelRunner {
 
 	private DocumentRoot root;
@@ -85,102 +83,49 @@ public class ModelRunner {
 	public void init() {
 		this.root = null;
 
-		try {
-			for (Command cmd: traceService.playback()) {
-				try {
-					this.handle(cmd, false);
-				} catch (ReportDeviationException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-		} catch (ClassNotFoundException | IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		// try {
+		// 	for (Command cmd: traceService.playback()) {
+		// 		try {
+		// 			this.handle(cmd, false);
+		// 		} catch (ReportDeviationException e) {
+		// 			// TODO Auto-generated catch block
+		// 			e.printStackTrace();
+		// 		} catch (IOException e) {
+		// 			// TODO Auto-generated catch block
+		// 			e.printStackTrace();
+		// 		}
+		// 	}
+		// } catch (ClassNotFoundException | IOException e) {
+		// 	// TODO Auto-generated catch block
+		// 	e.printStackTrace();
+		// }
 	}
 
-	private interface Handler {
+	public synchronized void handleEvent(ElementEvent commandData) throws ReportDeviationException {
 
-		void handle(ModelRunner model, Object commandData, Long timestamp) throws ReportDeviationException;
-
-	}
-
-	private static final Map<Class<? extends Object>, Handler> dispatch = new HashMap<>();
-	static {
-		dispatch.put(SetXMICommand.class, new Handler() {
-			@Override
-			public void handle(ModelRunner model, Object cmdData, Long timestamp) {
-				SetXMICommand commandData = (SetXMICommand) cmdData;
-				try {
-					model.setXMI(commandData.getSetXmi(), timestamp);
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-		});
-
-		dispatch.put(ElementEvent.class, new Handler() {
-			@Override
-			public void handle(ModelRunner model, Object cmdData, Long timestamp) throws ReportDeviationException {
-				ElementEvent commandData = (ElementEvent) cmdData;
-
-				if (commandData.getAction() != action.Start && commandData.getAction() != action.End) {
-					throw new RuntimeException("invalid event status");
-				}
-
-				/// set policies for the task (as metadata)
-				TaskMetaDataContext taskMeta = TaskMetaDataContext.of(Policy.of("admin", List.of("managers")));
-
-				ExtendedDataContext tasks = model.taskSvc.get(model.pid.tasks(), taskMeta);
-				List<TaskInstanceId> taskIdList = tasks.meta().as(TaskWorkItemDataContext.class).tasks();
-
-				for (TaskInstanceId taskId: taskIdList) {
-					System.out.println("task available: " + taskId.taskId().taskId());
-					if (commandData.getElementID().equals(taskId.taskId().taskId())) {
-						model.timeMonitor.monitor(commandData, timestamp);
-						if (commandData.getAction() == action.End) {
-							model.taskSvc.complete(taskId, MapDataContext.create());
-						}
-						return;
-					}
-				}
-
-				// deviation
-				System.out.println("DEVIATION: invalid action");
-			}
-		});
-	}
-
-	public void handle(Command cmd, boolean reportCommand) throws IOException, ReportDeviationException {
-		Object commandData = cmd.getCommand();
-		System.out.println("\nhandling " + commandData.getClass().getName());
-		Handler handler = dispatch.get(commandData.getClass());
-		try {
-			handler.handle(this, commandData, cmd.getTimestamp());
-		} catch (ReportDeviationException e) {
-			if (reportCommand) {
-				Command deviationCommand = Command.newBuilder().setCommand(e.getDeviation()).build();
-				traceService.save(deviationCommand);
-
-				// DeviationEvent deviationEvent = DeviationEvent.newBuilder().setEvent(e.getDeviation().getEvent()).build();
-				// DeviationCommand devCmd = DeviationCommand.newBuilder()
-				// 	.setDeviationID(e.getDeviation().getDeviationID())
-				// 	.setModelTopic(this.producer.getTopic())
-				// 	.setCommand(deviationEvent).build();
-				// deviationProducer.sendCommand(devCmd);
-			} else {
-				throw e;
-			}
-		}
-		if (reportCommand) {
-			traceService.save(cmd);
+		if (commandData.getAction() != action.Start && commandData.getAction() != action.End) {
+			throw new RuntimeException("invalid event status");
 		}
 
-		System.out.println("done handling " + commandData.getClass().getName());
+		/// set policies for the task (as metadata)
+		TaskMetaDataContext taskMeta = TaskMetaDataContext.of(Policy.of("admin", List.of("managers")));
+
+		ExtendedDataContext tasks = this.taskSvc.get(this.pid.tasks(), taskMeta);
+		List<TaskInstanceId> taskIdList = tasks.meta().as(TaskWorkItemDataContext.class).tasks();
+
+		for (TaskInstanceId taskId: taskIdList) {
+			System.out.println("task available: " + taskId.taskId().taskId());
+			if (commandData.getElementID().equals(taskId.taskId().taskId())) {
+				this.timeMonitor.monitor(commandData);
+				if (commandData.getAction() == action.End) {
+					this.taskSvc.complete(taskId, MapDataContext.create());
+				}
+				return;
+			}
+		}
+
+		// deviation
+		System.out.println("DEVIATION: invalid action");
 	}
 
 	public void monitorWaitingTime(Long taskTime) {
@@ -194,16 +139,11 @@ public class ModelRunner {
 		}
 	}
 
-	public void handle(Command cmd) throws ReportDeviationException {
-		try {
-			handle(cmd, false);
-		} catch (IOException e) {
-			// should not happen with reportCommand = false
-			e.printStackTrace();
-		}
+	public void setXMI(SetXMICommand modelData) throws IOException {
+		this.setXMI(modelData.getModel(), modelData.getTimestamp());
 	}
 
-	public void setXMI(String modelXMI, Long timestamp) throws IOException {
+	public synchronized void setXMI(String modelXMI, Long timestamp) throws IOException {
 		LocalProcessId id = appRoot.get(ProcessIds.class).get("process_1");
 		MapDataContext ctx = mapper.readValue("{}", MapDataContext.class);
 
@@ -225,7 +165,6 @@ public class ModelRunner {
 		resource.load(in, rs.getLoadOptions());
 
 		this.root = (DocumentRoot) resource.getContents().get(0);
-		this.timeMonitor = new TimeMonitor();
 	}
 
 	public EObject findID(String id) throws EObjectNotFound {
@@ -248,10 +187,42 @@ public class ModelRunner {
 		throw new EObjectNotFound(id);
 	}
 
-	@Incoming("model-input")
-	@Blocking
-	public void commandInput(Command command) throws IOException, ReportDeviationException {
-		this.handle(command, true);
+	@Incoming("model-input-event")
+	public void commandInput(JsonObject eventJsonObject) {
+		ElementEvent event = eventJsonObject.mapTo(ElementEvent.class);
+		System.out.println(event);
+		try {
+			this.handleEvent(event);
+		} catch (ReportDeviationException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		Command command = Command.newBuilder().setCommand(event).build();
+		try {
+			traceService.save(command);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Incoming("model-input-set-model")
+	public void setModel(JsonObject setModelJsonObject) {
+		SetXMICommand setModelData = setModelJsonObject.mapTo(SetXMICommand.class);
+		System.out.println(setModelData);
+		try {
+			this.setXMI(setModelData);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		Command command = Command.newBuilder().setCommand(setModelData).build();
+		try {
+			traceService.save(command);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 }

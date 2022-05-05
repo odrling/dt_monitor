@@ -13,8 +13,7 @@ import java.util.List;
 import javax.inject.Singleton;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-
-import test.kafka.test.kafka.bpmn.avro.Command;
+import avro.monitor.commands.Command;
 
 @Singleton
 public class TraceService {

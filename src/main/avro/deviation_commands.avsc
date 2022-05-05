@@ -37,10 +37,14 @@
                                                 "End"
                                             ]
                                         }
+                                    },
+                                    {
+                                        "name": "timestamp",
+                                        "type": "long"
                                     }
                                 ],
                                 "doc": "Events on a workflow element",
-                                "namespace": "test.kafka.test.kafka.bpmn.avro"
+                                "namespace": "avro.monitor.commands"
                             }
                         }
                     ],

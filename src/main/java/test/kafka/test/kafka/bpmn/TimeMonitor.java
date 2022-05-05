@@ -3,10 +3,11 @@ package test.kafka.test.kafka.bpmn;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Singleton;
 
-import test.kafka.test.kafka.bpmn.avro.ElementEvent;
-import test.kafka.test.kafka.bpmn.avro.action;
+import avro.monitor.commands.ElementEvent;
+import avro.monitor.commands.action;
 
 @Singleton
 public class TimeMonitor {
@@ -14,7 +15,8 @@ public class TimeMonitor {
 	private Map<String, Long> startTimes;
 	private Map<String, Long> startWaitingTime;
 
-	public TimeMonitor() {
+	@PostConstruct
+	public void init() {
 		this.startTimes = new HashMap<>();
 		this.startWaitingTime = new HashMap<>();
 
@@ -67,11 +69,11 @@ public class TimeMonitor {
 		}
 	}
 
-	public void monitor(ElementEvent event, Long timestamp) {
+	public void monitor(ElementEvent event) {
 		if (event.getAction() == action.Start) {
 			System.out.println("adding node ts " + event.getElementID());
 			this.startWaitingTime.remove(event.getElementID());
-			this.startTimes.put(event.getElementID(), timestamp);
+			this.startTimes.put(event.getElementID(), event.getTimestamp());
 		} else { // End
 			// assert timestamp - this.startTimes.get(node) < getDuration(node);
 			if (this.startTimes.containsKey(event.getElementID())) {
