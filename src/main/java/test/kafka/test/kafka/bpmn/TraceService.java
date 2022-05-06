@@ -10,15 +10,13 @@ import java.io.ObjectOutputStream;
 import java.util.LinkedList;
 import java.util.List;
 
+import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Singleton;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import avro.monitor.commands.Command;
 
-@Singleton
+@ApplicationScoped
 public class TraceService {
-
-	final static ObjectMapper mapper = new ObjectMapper();
 
 	public void save(Command command) throws IOException {
 		File file = new File("model-trace");

@@ -8,7 +8,6 @@ import java.util.List;
 import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
-import javax.inject.Singleton;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -23,7 +22,6 @@ import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.resource.ResourceSet;
 import org.eclipse.emf.ecore.resource.impl.ResourceFactoryImpl;
 import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
-import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.kie.kogito.incubation.application.AppRoot;
 import org.kie.kogito.incubation.common.ExtendedDataContext;
 import org.kie.kogito.incubation.common.MapDataContext;
@@ -38,12 +36,9 @@ import org.kie.kogito.incubation.processes.services.contexts.TaskMetaDataContext
 import org.kie.kogito.incubation.processes.services.contexts.TaskWorkItemDataContext;
 import org.kie.kogito.incubation.processes.services.humantask.HumanTaskService;
 
-import avro.monitor.commands.Command;
 import avro.monitor.commands.ElementEvent;
 import avro.monitor.commands.SetXMICommand;
 import avro.monitor.commands.action;
-import io.smallrye.common.annotation.Blocking;
-import io.vertx.core.json.JsonObject;
 
 @ApplicationScoped
 public class ModelRunner {
@@ -110,6 +105,8 @@ public class ModelRunner {
 		/// set policies for the task (as metadata)
 		TaskMetaDataContext taskMeta = TaskMetaDataContext.of(Policy.of("admin", List.of("managers")));
 
+		System.out.println(this.taskSvc);
+		System.out.println(this.pid);
 		ExtendedDataContext tasks = this.taskSvc.get(this.pid.tasks(), taskMeta);
 		List<TaskInstanceId> taskIdList = tasks.meta().as(TaskWorkItemDataContext.class).tasks();
 
@@ -149,6 +146,7 @@ public class ModelRunner {
 
 		this.process = processSvc.create(id, ctx);
 		this.pid = this.process.meta().as(ProcessMetaDataContext.class).id(ProcessInstanceId.class);
+		System.out.println(this.pid);
 
 		this.monitorWaitingTime(timestamp);
 
@@ -185,44 +183,6 @@ public class ModelRunner {
 			}
 		}
 		throw new EObjectNotFound(id);
-	}
-
-	@Incoming("model-input-event")
-	public void commandInput(JsonObject eventJsonObject) {
-		ElementEvent event = eventJsonObject.mapTo(ElementEvent.class);
-		System.out.println(event);
-		try {
-			this.handleEvent(event);
-		} catch (ReportDeviationException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		Command command = Command.newBuilder().setCommand(event).build();
-		try {
-			traceService.save(command);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-
-	@Incoming("model-input-set-model")
-	public void setModel(JsonObject setModelJsonObject) {
-		SetXMICommand setModelData = setModelJsonObject.mapTo(SetXMICommand.class);
-		System.out.println(setModelData);
-		try {
-			this.setXMI(setModelData);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		Command command = Command.newBuilder().setCommand(setModelData).build();
-		try {
-			traceService.save(command);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
 	}
 
 }

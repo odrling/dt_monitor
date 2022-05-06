@@ -4,12 +4,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 import javax.annotation.PostConstruct;
+import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Singleton;
 
 import avro.monitor.commands.ElementEvent;
 import avro.monitor.commands.action;
 
-@Singleton
+@ApplicationScoped
 public class TimeMonitor {
 
 	private Map<String, Long> startTimes;
