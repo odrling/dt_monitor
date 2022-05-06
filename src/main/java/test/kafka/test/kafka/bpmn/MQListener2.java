@@ -8,7 +8,6 @@ import javax.inject.Inject;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 
 import avro.monitor.commands.Command;
-import avro.monitor.commands.ElementEvent;
 import avro.monitor.commands.SetXMICommand;
 import io.vertx.core.json.JsonObject;
 
@@ -18,7 +17,7 @@ public class MQListener2 {
 	@Inject ModelRunner modelRunner;
 	@Inject TraceService traceService;
 
-	@Incoming("model-input-set-model")
+	@Incoming("modelInputSetModel")
 	public void setModel(JsonObject setModelJsonObject) {
 		SetXMICommand setModelData = setModelJsonObject.mapTo(SetXMICommand.class);
 		System.out.println(setModelData);
