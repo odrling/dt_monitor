@@ -111,12 +111,12 @@ public class ModelRunner {
 		List<TaskInstanceId> taskIdList = tasks.meta().as(TaskWorkItemDataContext.class).tasks();
 
 		for (TaskInstanceId taskId: taskIdList) {
-			System.out.println("task available: " + taskId.taskId().taskId());
 			if (commandData.getElementID().equals(taskId.taskId().taskId())) {
 				this.timeMonitor.monitor(commandData);
 				if (commandData.getAction() == action.End) {
 					this.taskSvc.complete(taskId, MapDataContext.create());
 				}
+				this.monitorWaitingTime(commandData.getTimestamp());
 				return;
 			}
 		}
@@ -132,6 +132,7 @@ public class ModelRunner {
 		List<TaskInstanceId> taskIdList = tasks.meta().as(TaskWorkItemDataContext.class).tasks();
 
 		for (TaskInstanceId taskId: taskIdList) {
+			System.out.println("task available: " + taskId.taskId().taskId());
 			this.timeMonitor.monitorWaiting(taskId.taskId().taskId(), taskTime);
 		}
 	}
