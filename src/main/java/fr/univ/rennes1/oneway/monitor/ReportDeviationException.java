@@ -1,4 +1,4 @@
-package test.kafka.test.kafka.bpmn;
+package fr.univ.rennes1.oneway.monitor;
 
 import avro.monitor.commands.Deviation;
 

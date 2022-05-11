@@ -1,4 +1,4 @@
-package test.kafka.test.kafka.bpmn.statemachine;
+package fr.univ.rennes1.oneway.monitor.statemachine;
 
 public class Transition {
 	private Action action;

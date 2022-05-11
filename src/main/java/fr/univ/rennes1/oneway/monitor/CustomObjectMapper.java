@@ -1,4 +1,4 @@
-package fr.ur1;
+package fr.univ.rennes1.oneway.monitor;
 
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
