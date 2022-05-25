@@ -49,7 +49,7 @@
                         }
                     ],
                     "doc": "Deviation occuring in the workflow",
-                    "namespace": "test.kafka.test.kafka.deviations.avro"
+                    "namespace": "avro.monitor.deviations"
                 },
                 {
                     "type": "record",
@@ -65,11 +65,11 @@
                         }
                     ],
                     "doc": "DeviationAnalysis(reason: str, relatedNodeID: str)",
-                    "namespace": "test.kafka.test.kafka.deviations.avro"
+                    "namespace": "avro.monitor.deviations"
                 }
             ]
         }
     ],
     "doc": "DeviationCommand(deviationID: str, modelTopic: str, command: Union[deviation_commands.DeviationEvent, deviation_commands.DeviationAnalysis])",
-    "namespace": "test.kafka.test.kafka.deviations.avro"
+    "namespace": "avro.monitor.deviations"
 }

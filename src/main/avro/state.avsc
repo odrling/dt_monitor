@@ -1,0 +1,43 @@
+{
+    "type": "record",
+    "name": "GlobalState",
+    "fields": [
+        {
+            "name": "tasks",
+            "type": {
+                "type": "array",
+                "items": {
+                    "type": "record",
+                    "name": "TaskState",
+                    "fields": [
+                        {
+                            "name": "elementID",
+                            "type": "string"
+                        },
+                        {
+                            "name": "state",
+                            "type": {
+                                "type": "enum",
+                                "name": "state",
+                                "symbols": [
+                                    "Waiting",
+                                    "Processing",
+                                    "Completed"
+                                ]
+                            }
+                        }
+                    ],
+                    "doc": "TaskState(elementID: str, state: state.State)",
+                    "namespace": "avro.monitor.state"
+                },
+                "name": "task"
+            }
+        },
+        {
+            "name": "bpmnModel",
+            "type": "string"
+        }
+    ],
+    "doc": "GlobalState(tasks: list[state.TaskState], bpmnModel: str)",
+    "namespace": "avro.monitor.state"
+}

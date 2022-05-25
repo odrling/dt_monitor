@@ -15,43 +15,53 @@ import io.vertx.core.json.JsonObject;
 @ApplicationScoped
 public class MQListener {
 
-	@Inject ModelRunner modelRunner;
-	@Inject TraceService traceService;
+	@Inject
+	ModelRunner modelRunner;
+	@Inject
+	TraceService traceService;
 
 	@Incoming("modelInputSetModel")
 	public void setModel(JsonObject setModelJsonObject) {
-		SetXMICommand setModelData = setModelJsonObject.mapTo(SetXMICommand.class);
-		System.out.println(setModelData);
 		try {
-			modelRunner.setXMI(setModelData);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+			SetXMICommand setModelData = setModelJsonObject.mapTo(SetXMICommand.class);
+			System.out.println(setModelData);
+			try {
+				modelRunner.setXMI(setModelData);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 
-		Command command = Command.newBuilder().setCommand(setModelData).build();
-		try {
-			traceService.save(command);
-		} catch (IOException e) {
+			Command command = Command.newBuilder().setCommand(setModelData).build();
+			try {
+				traceService.save(command);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 
 	@Incoming("modelInputEvent")
 	public void commandInput(JsonObject eventJsonObject) {
-		ElementEvent event = eventJsonObject.mapTo(ElementEvent.class);
-		System.out.println(event);
 		try {
-			modelRunner.handleEvent(event);
-		} catch (ReportDeviationException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+			ElementEvent event = eventJsonObject.mapTo(ElementEvent.class);
+			System.out.println(event);
+			try {
+				modelRunner.handleEvent(event);
+			} catch (ReportDeviationException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 
-		Command command = Command.newBuilder().setCommand(event).build();
-		try {
-			traceService.save(command);
-		} catch (IOException e) {
+			Command command = Command.newBuilder().setCommand(event).build();
+			try {
+				traceService.save(command);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}

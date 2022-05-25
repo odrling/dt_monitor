@@ -1,18 +1,23 @@
 package fr.univ.rennes1.oneway.monitor;
 
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import avro.monitor.commands.ElementEvent;
 import avro.monitor.commands.action;
+import avro.monitor.state.TaskState;
+import avro.monitor.state.state;
+import avro.monitor.state.TaskState.Builder;
 
 @ApplicationScoped
 public class TimeMonitor {
 
-	private Map<String, TaskClock> startTimes;
-	private Map<String, TaskClock> startWaitingTime;
+	private volatile Map<String, TaskClock> startTimes;
+	private volatile Map<String, TaskClock> startWaitingTime;
 
 	@PostConstruct
 	public void init() {
@@ -22,13 +27,45 @@ public class TimeMonitor {
 		this.start();
 	}
 
-	public void checkTimeDeviation(TaskClock clock, String node, String reason) {
+	public void checkTimeDeviation(TaskClock clock, String node, state currentState) {
 		long duration = System.currentTimeMillis() - clock.getStartTime();
 
 		if (!clock.isDone() && duration > getDuration(node)) {
 			// TODO: produce deviation
-			System.out.println("DEVIATION: time deviation on node (" + reason + ") " + node);
+			System.out.println("DEVIATION: time deviation on node (" + currentState + ") " + node);
 		}
+	}
+
+
+	public List<TaskState> getTaskStates() {
+		List<TaskState> taskStates = new LinkedList<>();
+		for (String node: this.startWaitingTime.keySet()) {
+			TaskClock taskClock = this.startWaitingTime.get(node);
+			if (!taskClock.isDone()) {
+				TaskState taskState = TaskState.newBuilder()
+					.setElementID(node)
+					.setState(state.Waiting)
+					.build();
+
+				taskStates.add(taskState);
+			}
+		}
+
+		for (String node: this.startTimes.keySet()) {
+			TaskClock taskClock = this.startTimes.get(node);
+
+			TaskState taskState;
+			Builder taskStateBuilder = TaskState.newBuilder().setElementID(node);
+			if (taskClock.isDone()) {
+				taskState = taskStateBuilder.setState(state.Completed).build();
+			} else {
+				taskState = taskStateBuilder.setState(state.Processing).build();
+			}
+
+			taskStates.add(taskState);
+		}
+
+		return taskStates;
 	}
 
 	public void start() {
@@ -37,12 +74,12 @@ public class TimeMonitor {
 				while (true) {
 					for (String node: startTimes.keySet()) {
 						TaskClock clock = startTimes.get(node);
-						checkTimeDeviation(clock, node, "processing");
+						checkTimeDeviation(clock, node, state.Processing);
 					}
 
 					for (String node: startWaitingTime.keySet()) {
 						TaskClock clock = startWaitingTime.get(node);
-						checkTimeDeviation(clock, node, "waiting");
+						checkTimeDeviation(clock, node, state.Waiting);
 					}
 
 					try {

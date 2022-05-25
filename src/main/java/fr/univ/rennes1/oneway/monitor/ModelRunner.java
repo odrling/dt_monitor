@@ -43,9 +43,9 @@ import avro.monitor.commands.action;
 @ApplicationScoped
 public class ModelRunner {
 
-	private DocumentRoot root;
+	private volatile DocumentRoot root;
 
-	private ExtendedDataContext process;
+	private volatile ExtendedDataContext process;
 
 	@Inject
 	TraceService traceService;
@@ -97,7 +97,6 @@ public class ModelRunner {
 	}
 
 	public synchronized void handleEvent(ElementEvent commandData) throws ReportDeviationException {
-
 		if (commandData.getAction() != action.Start && commandData.getAction() != action.End) {
 			throw new RuntimeException("invalid event status");
 		}
@@ -135,6 +134,8 @@ public class ModelRunner {
 			System.out.println("task available: " + taskId.taskId().taskId());
 			this.timeMonitor.monitorWaiting(taskId.taskId().taskId(), taskTime);
 		}
+
+		this.traceService.saveState(taskTime);
 	}
 
 	public void setXMI(SetXMICommand modelData) throws IOException {
@@ -145,10 +146,13 @@ public class ModelRunner {
 		LocalProcessId id = appRoot.get(ProcessIds.class).get("process_1");
 		MapDataContext ctx = mapper.readValue("{}", MapDataContext.class);
 
+		System.out.println(id);
+		System.out.println(processSvc);
 		this.process = processSvc.create(id, ctx);
 		this.pid = this.process.meta().as(ProcessMetaDataContext.class).id(ProcessInstanceId.class);
 		System.out.println(this.pid);
 
+		this.traceService.setCurrentBPMNXMI(modelXMI);
 		this.monitorWaitingTime(timestamp);
 
 		ResourceFactoryImpl bpmnFactory = new Bpmn2ResourceFactoryImpl();
