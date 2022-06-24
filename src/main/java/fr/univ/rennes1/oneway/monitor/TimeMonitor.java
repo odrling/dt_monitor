@@ -18,6 +18,7 @@ public class TimeMonitor {
 
 	private volatile Map<String, TaskClock> startTimes;
 	private volatile Map<String, TaskClock> startWaitingTime;
+	private Thread monitorThread;
 
 	@PostConstruct
 	public void init() {
@@ -27,10 +28,27 @@ public class TimeMonitor {
 		this.start();
 	}
 
-	public void checkTimeDeviation(TaskClock clock, String node, state currentState) {
-		long duration = System.currentTimeMillis() - clock.getStartTime();
+	public long getExpectedRemainingTime(TaskClock clock, String node, state currentState) {
+		long progress = System.currentTimeMillis() - clock.getStartTime();
+		long duration;
+		switch (currentState) {
+			case Completed:
+				duration = 0;
+				return 0;
+			case Processing:
+				duration = getDuration(node);
+				break;
+			case Waiting:
+				duration = getWaiting(node);
+				break;
+			default:
+				throw new RuntimeException("Unexpected state " + currentState);
+		}
+		return duration - progress;
+	}
 
-		if (!clock.isDone() && duration > getDuration(node)) {
+	public void checkTimeDeviation(TaskClock clock, String node, state currentState) {
+		if (!clock.isDone() && getExpectedRemainingTime(clock, node, currentState) <= 0) {
 			// TODO: produce deviation
 			System.out.println("DEVIATION: time deviation on node (" + currentState + ") " + node);
 		}
@@ -69,29 +87,42 @@ public class TimeMonitor {
 	}
 
 	public void start() {
-		Thread t = new Thread(new Runnable() {
+		this.monitorThread = new Thread(new Runnable() {
 			public void run() {
 				while (true) {
-					for (String node: startTimes.keySet()) {
-						TaskClock clock = startTimes.get(node);
-						checkTimeDeviation(clock, node, state.Processing);
-					}
-
-					for (String node: startWaitingTime.keySet()) {
-						TaskClock clock = startWaitingTime.get(node);
-						checkTimeDeviation(clock, node, state.Waiting);
-					}
-
 					try {
-						Thread.sleep(1000);
+						long nextEvent = 1000 * 3600 * 24;
+						long remaining;
+
+						for (String node: startTimes.keySet()) {
+							TaskClock clock = startTimes.get(node);
+							remaining = getExpectedRemainingTime(clock, node, state.Processing);
+							checkTimeDeviation(clock, node, state.Processing);
+							if (remaining > 0 && remaining < nextEvent)
+								nextEvent = remaining;
+						}
+
+						for (String node: startWaitingTime.keySet()) {
+							TaskClock clock = startWaitingTime.get(node);
+							remaining = getExpectedRemainingTime(clock, node, state.Waiting);
+							checkTimeDeviation(clock, node, state.Waiting);
+							if (remaining >= 0 && remaining < nextEvent)
+								nextEvent = remaining;
+						}
+
+						if (nextEvent < 1000)
+							nextEvent = 1000;
+
+						System.out.println(nextEvent + "ms until next time deviation check");
+						Thread.sleep(nextEvent);
 					} catch (InterruptedException e) {
 						// TODO Auto-generated catch block
-						e.printStackTrace();
+						System.out.println("time monitoring thread interrupted");
 					}
 				}
 			}
 		});
-		t.start();
+		this.monitorThread.start();
 	}
 
 	public int getDuration(String nodeID) {
@@ -106,6 +137,7 @@ public class TimeMonitor {
 		if (!startWaitingTime.containsKey(node)) {
 			TaskClock clock = new TaskClock(timestamp);
 			this.startWaitingTime.put(node, clock);
+			this.monitorThread.interrupt();
 		}
 	}
 
@@ -116,10 +148,12 @@ public class TimeMonitor {
 
 			TaskClock clock = new TaskClock(event.getTimestamp());
 			this.startTimes.put(event.getElementID(), clock);
+			this.monitorThread.interrupt();
 		} else { // End
 			// assert timestamp - this.startTimes.get(node) < getDuration(node);
 			if (this.startTimes.containsKey(event.getElementID())) {
 				this.startTimes.get(event.getElementID()).setEndTime(event.getTimestamp());
+				this.monitorThread.interrupt();
 			} else {
 				throw new RuntimeException("DEVIATION: task " + event.getElementID() + " wasn't started");
 			}
