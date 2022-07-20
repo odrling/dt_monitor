@@ -3,6 +3,7 @@ package fr.univ.rennes1.oneway.monitor;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import javax.annotation.PostConstruct;
@@ -66,6 +67,8 @@ public class ModelRunner {
 	HumanTaskService taskSvc;
 	private ProcessInstanceId pid;
 
+	private String modelString;
+
 	public DocumentRoot getRoot() {
 		return root;
 	}
@@ -77,6 +80,8 @@ public class ModelRunner {
 	@PostConstruct
 	public void init() {
 		this.root = null;
+
+		this.modelString = this.readModelFile();
 
 		// try {
 		// 	for (Command cmd: traceService.playback()) {
@@ -138,6 +143,20 @@ public class ModelRunner {
 		this.traceService.saveState(taskTime);
 	}
 
+	public String readModelFile() {
+		InputStream ioStream = this.getClass().getClassLoader().getResourceAsStream("process_1.bpmn");
+
+		if (ioStream == null) {
+			throw new RuntimeException("failed to find model resource");
+		}
+		try {
+			return new String(ioStream.readAllBytes(), StandardCharsets.UTF_8);
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new RuntimeException("could not read model resource file");
+		}
+	}
+
 	public void setXMI(SetXMICommand modelData) throws IOException {
 		this.setXMI(modelData.getModel(), modelData.getTimestamp());
 	}
@@ -188,6 +207,16 @@ public class ModelRunner {
 			}
 		}
 		throw new EObjectNotFound(id);
+	}
+
+	public void setProcessStart(long timestamp) {
+		try {
+			this.setXMI(this.modelString, timestamp);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			throw new RuntimeException("failed to setup process");
+		}
 	}
 
 }

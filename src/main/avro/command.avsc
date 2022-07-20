@@ -7,12 +7,8 @@
             "type": [
                 {
                     "type": "record",
-                    "name": "SetXMICommand",
+                    "name": "StartProcess",
                     "fields": [
-                        {
-                            "name": "model",
-                            "type": "string"
-                        },
                         {
                             "name": "timestamp",
                             "type": "long"
@@ -71,6 +67,6 @@
             ]
         }
     ],
-    "doc": "Command(command: Union[commands.SetXMICommand, commands.ElementEvent, commands.Deviation])",
+    "doc": "Command(command: Union[commands.StartProcess, commands.ElementEvent, commands.Deviation])",
     "namespace": "avro.monitor.commands"
 }

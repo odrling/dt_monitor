@@ -9,7 +9,7 @@ import org.eclipse.microprofile.reactive.messaging.Incoming;
 
 import avro.monitor.commands.Command;
 import avro.monitor.commands.ElementEvent;
-import avro.monitor.commands.SetXMICommand;
+import avro.monitor.commands.StartProcess;
 import io.vertx.core.json.JsonObject;
 
 @ApplicationScoped
@@ -23,14 +23,9 @@ public class MQListener {
 	@Incoming("modelInputSetModel")
 	public void setModel(JsonObject setModelJsonObject) {
 		try {
-			SetXMICommand setModelData = setModelJsonObject.mapTo(SetXMICommand.class);
+			StartProcess setModelData = setModelJsonObject.mapTo(StartProcess.class);
 			System.out.println(setModelData);
-			try {
-				modelRunner.setXMI(setModelData);
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			modelRunner.setProcessStart(setModelData.getTimestamp());
 
 			Command command = Command.newBuilder().setCommand(setModelData).build();
 			try {
@@ -47,6 +42,10 @@ public class MQListener {
 	public void commandInput(JsonObject eventJsonObject) {
 		try {
 			ElementEvent event = eventJsonObject.mapTo(ElementEvent.class);
+
+			if (this.modelRunner.getRoot() == null) {
+				this.modelRunner.setProcessStart(event.getTimestamp());
+			}
 			System.out.println(event);
 			try {
 				modelRunner.handleEvent(event);
